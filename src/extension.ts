@@ -1,21 +1,22 @@
 import * as vscode from 'vscode';
+import { Storybook } from './storybook';
 import { StoryBookContentProvider } from './StoryBookContentProvider';
-import { resolveUri } from './utils';
-import { stopServer, startServer } from './server';
+import { getPreviewUri } from './utils';
+
+export let storybook: Storybook;
 
 export function activate(context: vscode.ExtensionContext) {
   console.log(
     'Congratulations, your extension "vscode-storybook" is now active!',
   );
 
-  startServer();
-
-  let provider = new StoryBookContentProvider();
+  const provider = new StoryBookContentProvider();
+  storybook = new Storybook();
 
   vscode.workspace.onDidChangeTextDocument(
     (e: vscode.TextDocumentChangeEvent) => {
       if (e.document === vscode.window.activeTextEditor.document) {
-        const uri = resolveUri(vscode.window.activeTextEditor.document);
+        const uri = getPreviewUri(vscode.window.activeTextEditor);
         provider.update(uri);
       }
     },
@@ -24,35 +25,42 @@ export function activate(context: vscode.ExtensionContext) {
   vscode.window.onDidChangeTextEditorSelection(
     (e: vscode.TextEditorSelectionChangeEvent) => {
       if (e.textEditor === vscode.window.activeTextEditor) {
-        const uri = resolveUri(vscode.window.activeTextEditor.document);
+        const uri = getPreviewUri(vscode.window.activeTextEditor);
         provider.update(uri);
       }
     },
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('vscode-storybook.openStorybook', openStorybook),
+    vscode.commands.registerCommand(
+      'vscode-storybook.openStorybook',
+      openStorybook,
+    ),
     vscode.workspace.registerTextDocumentContentProvider('storybook', provider),
   );
 }
 
 // this method is called when your extension is deactivated
 export function deactivate() {
-  stopServer();
+  if (storybook) {
+    storybook.stopServer();
+  }
 }
 
 function openStorybook() {
   return vscode.commands
     .executeCommand(
       'vscode.previewHtml',
-      vscode.Uri.parse('storybook://preview'),
+      StoryBookContentProvider.uri,
       vscode.ViewColumn.Two,
-      'Story book',
+      'Storybook preview',
     )
     .then(
-      success => {},
-      reason => {
-        vscode.window.showErrorMessage(reason);
+      success => {
+        // no-op
+      },
+      error => {
+        vscode.window.showErrorMessage(error);
       },
     );
 }

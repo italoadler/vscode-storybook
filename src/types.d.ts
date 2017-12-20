@@ -1,18 +1,8 @@
-declare module '@storybook/react/server' {
-  export interface Closeable {
-    close(): void;
-  }
+// simplest way to make storybook middleware work with typescript ...
+declare module '@storybook/react/dist/server/middleware' {
+  import * as express from 'express';
 
-  export interface Options {
-    port: number;
-    host?: string;
-    staticDir?: string;
-    configDir?: string;
-    https?: boolean;
-    sslCa?: string[];
-    sslCert?: string;
-    sslKey?: string;
-  }
+  export function webpackValid(): Promise<void>;
 
-  export function startServer(program: Options): Promise<Closeable>;
+  export default function(configDir: string): express.Router;
 }
