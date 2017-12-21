@@ -1,38 +1,24 @@
 import * as querystring from 'querystring';
 import * as vscode from 'vscode';
+import config from './config';
 import { storybook } from './extension';
+import { getStories, Story } from './parser';
 import { ServerState } from './storybook';
-import { getPreviewUri } from './utils';
 
 export class StoryBookContentProvider
   implements vscode.TextDocumentContentProvider {
   static readonly uri = vscode.Uri.parse('storybook://preview');
 
   private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
-  private query: any;
   private storybookLogListener: vscode.Disposable;
+  private story: Story;
 
   provideTextDocumentContent(uri: vscode.Uri): string {
-    const serverState = this.serverStartLog(uri);
-    if (serverState) {
-      return serverState;
+    if (storybook.serverState !== ServerState.LISTENING) {
+      return this.serverStart(uri);
     }
 
-    const port = vscode.workspace
-      .getConfiguration('storybook')
-      .get<number>('port');
-
-    const hostUrl = [
-      'http://localhost:',
-      port,
-      '/?selectedKind=',
-      this.query.kind,
-      '&selectedStory=',
-      this.query.story,
-      '&full=1',
-    ].join('');
-    const style = 'background: white; width: 100%; height: 95vh;';
-    return `<iframe src='${hostUrl}' frameborder='0' style='${style}' />`;
+    return this.showStory();
   }
 
   get onDidChange(): vscode.Event<vscode.Uri> {
@@ -40,11 +26,14 @@ export class StoryBookContentProvider
   }
 
   update(uri: vscode.Uri) {
-    this.query = querystring.parse(uri.query);
-    this.onDidChangeEmitter.fire(StoryBookContentProvider.uri);
+    const editor = vscode.window.activeTextEditor;
+    const stories = getStories(editor.document);
+    const pos = editor.document.offsetAt(editor.selection.active);
+    this.story = stories.filter(o => o.pos < pos && o.end > pos)[0];
+    this.onDidChangeEmitter.fire(uri);
   }
 
-  private serverStartLog(uri: vscode.Uri) {
+  private serverStart(uri: vscode.Uri) {
     if (storybook.serverState !== ServerState.LISTENING) {
       if (!this.storybookLogListener) {
         this.storybookLogListener = storybook.onLog(() => {
@@ -58,18 +47,30 @@ export class StoryBookContentProvider
           storybook.startServer();
         });
       }
-
-      return `<pre>${storybook.logLines}</pre>`;
     } else {
       if (this.storybookLogListener) {
         this.storybookLogListener.dispose();
         this.storybookLogListener = undefined;
-        const previewUri = getPreviewUri(vscode.window.activeTextEditor);
-        this.update(previewUri);
-        return `<pre>${storybook.logLines}</pre>`;
+        this.update(uri);
       }
     }
 
-    return undefined;
+    const style = 'width: 100%; padding-left: 2em; text-indent: -2em;';
+    return `<pre style="${style}">${storybook.logLines}</pre>`;
+  }
+
+  private showStory() {
+    if (!this.story) {
+      return '<div>No story is selected.</div>';
+    }
+
+    const { kind, name: story } = this.story;
+
+    const hostUrl =
+      `http://localhost:${config.port}/` +
+      `?selectedKind=${kind}&selectedStory=${story}&full=1`;
+
+    const style = 'background: white; width: 100%; height: 95vh;';
+    return `<iframe src='${hostUrl}' frameborder='0' style='${style}' />`;
   }
 }

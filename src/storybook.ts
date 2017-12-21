@@ -1,8 +1,8 @@
 import { ChildProcess, fork } from 'child_process';
 import * as path from 'path';
+import { throttle } from 'throttle-debounce';
 import * as vscode from 'vscode';
 import config from './config';
-import { throttle } from './utils';
 
 export enum ServerState {
   STOPPED = 'STOPED',
@@ -22,9 +22,9 @@ export class Storybook {
     this.eventEmmiter = new vscode.EventEmitter<void>();
     this.log = '';
 
-    this.throttledEvent = throttle(() => {
+    this.throttledEvent = throttle(100, () => {
       this.eventEmmiter.fire();
-    }, 100);
+    });
   }
 
   get serverState() {
@@ -64,6 +64,7 @@ export class Storybook {
       if (typeof data !== 'string') {
         data = data.toString();
       }
+
       this.appendLog(data);
     });
 
@@ -71,6 +72,7 @@ export class Storybook {
       if (typeof data !== 'string') {
         data = data.toString();
       }
+
       this.appendLog(data);
     });
 
@@ -95,15 +97,9 @@ export class Storybook {
   }
 
   private appendLog(data: string) {
-    // ideally i would call this:
-    // `this.log = this.log + data;`
-    // but 'data' contains backspace characters, with needs to be cleared first
-
-    // combine data with prev log in case data starts with \b with removes
-    // caracters from prev log
     this.log = this.log + data;
 
-    // remove all backspaces and any chars immedialy before \b
+    // remove all backspaces and any chars immedialy before
     while (this.log.indexOf('\b') !== -1) {
       this.log = this.log.replace(/.\x08/, '');
     }

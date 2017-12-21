@@ -1,32 +1,35 @@
-import * as path from 'path';
 import * as ts from 'typescript';
-import { isCallExpression } from 'typescript';
-import { deprecate } from 'util';
 import * as vscode from 'vscode';
 
-export function getPreviewUri(editor: vscode.TextEditor) {
-  const stories = resolveStories(editor.document);
-  const pos = editor.document.offsetAt(editor.selection.active);
-  const story = stories.filter(o => o.pos < pos && o.end > pos)[0];
-  return vscode.Uri.parse(
-    `storybook://preview?kind=${story.kind}&story=${story.name}`,
-  );
-}
-
-interface Story {
+export interface Story {
   pos: number;
   end: number;
   name: string;
   kind: string;
 }
-const positions: { [fileName: string]: { ver: number; stories: Story[] } } = {};
+const cache: { [fileName: string]: { ver: number; stories: Story[] } } = {};
 
-function resolveStories(document: vscode.TextDocument): Story[] {
-  const cached = positions[document.fileName];
-  if (cached && cached.ver === document.version) {
-    return cached.stories;
+export function getStories(document: vscode.TextDocument): Story[] {
+  let item = cache[document.fileName];
+  if (!item || item.ver !== document.version) {
+    cache[document.fileName] = item = {
+      ver: document.version,
+      stories: parseStories(document),
+    };
   }
 
+  return item.stories;
+}
+
+function parseStories(document: vscode.TextDocument): Story[] {
+  if (document.languageId === 'typescriptreact') {
+    return parseStoriesTsx(document);
+  }
+
+  return [];
+}
+
+function parseStoriesTsx(document: vscode.TextDocument) {
   const sourceFile: ts.Node = ts.createSourceFile(
     document.fileName,
     document.getText(),
@@ -34,6 +37,10 @@ function resolveStories(document: vscode.TextDocument): Story[] {
     true,
   );
 
+  // find all root constructs of code like this:
+  // storiesOf("Something", module)
+  //   .add("This", () => (<StorybookStory>...</StorybookStory>))
+  //   .add("That", () => (<StorybookStory>...</StorybookStory>))
   const calls: ts.CallExpression[] = [];
   const nodes: ts.Node[] = [sourceFile];
   while (nodes.length > 0) {
@@ -45,11 +52,12 @@ function resolveStories(document: vscode.TextDocument): Story[] {
     }
   }
 
-  const result = {
-    ver: document.version,
-    stories: [],
-  };
+  const result: Story[] = [];
 
+  // parse founded root constructs - parsed backwards
+  // first found: `add("That", () => (<StorybookStory>...</StorybookStory>))`
+  // then its child: `add("This", () => (<StorybookStory>...</StorybookStory>))`
+  // and lastly: `storiesOf("Something", module)`
   calls.forEach(n => {
     let stories = [];
     let node = n;
@@ -61,22 +69,25 @@ function resolveStories(document: vscode.TextDocument): Story[] {
       const arg1 = tmp.arguments[1];
       if (ts.isStringLiteral(arg0)) {
         if (ts.isIdentifier(arg1)) {
+          // found storiesOf call - fill kind to all stories founded earlier
           const kind = arg0.text;
           stories.forEach(story => {
             story.kind = kind;
           });
 
-          result.stories.push(...stories);
+          result.push(...stories);
           stories = [];
         }
 
         if (ts.isArrowFunction(arg1)) {
+          // found story
           stories.push({
             name: arg0.text,
             pos: arg1.pos,
             end: arg1.end,
           });
 
+          // story needs to have child - either another story or storiesOf call
           const firstChild = tmp.getChildAt(0);
           if (ts.isPropertyAccessExpression(firstChild)) {
             const firstChildExpression = firstChild.expression;
@@ -89,27 +100,5 @@ function resolveStories(document: vscode.TextDocument): Story[] {
     }
   });
 
-  positions[document.fileName] = result;
-  return result.stories;
-}
-
-export function throttle(fn: any, threshhold: number, scope?: any) {
-  threshhold = threshhold || (threshhold = 250);
-  let last;
-  let deferTimer;
-  return function(...args: any[]) {
-    const context = scope || this;
-    const now = +new Date();
-    if (last && now < last + threshhold) {
-      // hold on to it
-      clearTimeout(deferTimer);
-      deferTimer = setTimeout(() => {
-        last = now;
-        fn.apply(context, args);
-      }, threshhold);
-    } else {
-      last = now;
-      fn.apply(context, args);
-    }
-  };
+  return result;
 }

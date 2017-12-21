@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { Storybook } from './storybook';
 import { StoryBookContentProvider } from './StoryBookContentProvider';
-import { getPreviewUri } from './utils';
 
 export let storybook: Storybook;
 
@@ -16,8 +15,7 @@ export function activate(context: vscode.ExtensionContext) {
   vscode.workspace.onDidChangeTextDocument(
     (e: vscode.TextDocumentChangeEvent) => {
       if (e.document === vscode.window.activeTextEditor.document) {
-        const uri = getPreviewUri(vscode.window.activeTextEditor);
-        provider.update(uri);
+        provider.update(StoryBookContentProvider.uri);
       }
     },
   );
@@ -25,8 +23,7 @@ export function activate(context: vscode.ExtensionContext) {
   vscode.window.onDidChangeTextEditorSelection(
     (e: vscode.TextEditorSelectionChangeEvent) => {
       if (e.textEditor === vscode.window.activeTextEditor) {
-        const uri = getPreviewUri(vscode.window.activeTextEditor);
-        provider.update(uri);
+        provider.update(StoryBookContentProvider.uri);
       }
     },
   );

@@ -4,11 +4,20 @@
   "description": "StoryBook preview for VSCode",
   "version": "0.0.1",
   "publisher": "cstechnologies",
+  "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CzBuCHi/vscode-storybook.git"
+  },
   "engines": {
     "vscode": "^1.19.0"
   },
-  "categories": ["Other"],
-  "activationEvents": ["onCommand:vscode-storybook.openStorybook"],
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:vscode-storybook.openStorybook"
+  ],
   "main": "./out/extension",
   "contributes": {
     "configuration": {
@@ -62,6 +71,9 @@
     "vscode": "^1.1.6"
   },
   "dependencies": {
-    "@storybook/react": "3.2.18"
+    "@storybook/react": "3.2.18",
+    "react": "^16.2.0",
+    "react-dom": "^16.2.0",
+    "throttle-debounce": "^1.0.1"
   }
 }

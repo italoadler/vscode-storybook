@@ -1,4 +1,5 @@
-/* this process is executed from workspace directory and requires, that
+/* 
+ * this process is executed from workspace directory and requires, that
  * workspace have installed '@storybook/react' package
  */
 import * as express from 'express';
@@ -30,6 +31,17 @@ function setState(state: ServerState) {
 
 function start(config: Config) {
   process.chdir(config.rootPath);
+
+  const middlewarePath = path.resolve(
+    config.rootPath,
+    'node_modules',
+    '@storybook/react/dist/server/middleware.js',
+  );
+
+  if (!fs.existsSync(middlewarePath)) {
+    console.error('ERROR: Cannot find package \'@storybook/react\'.');
+    process.exit(1);
+  }
 
   if (serverState !== ServerState.STOPPED) {
     console.error('ERROR: Server is not stopped.');
@@ -68,11 +80,7 @@ function start(config: Config) {
   const configDir = path.join(config.rootPath, config.configDir);
 
   // import from project node_modules, not from extension node_modules
-  const { default: storybook, webpackValid } = require(path.resolve(
-    config.rootPath,
-    'node_modules',
-    '@storybook/react/dist/server/middleware',
-  ));
+  const { default: storybook, webpackValid } = require(middlewarePath);
 
   app.use(storybook(configDir));
 
