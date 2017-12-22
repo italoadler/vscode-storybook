@@ -3,11 +3,13 @@ import * as path from 'path';
 import { throttle } from 'throttle-debounce';
 import * as vscode from 'vscode';
 import config from './config';
+import { channel } from './extension';
 
 export enum ServerState {
   STOPPED = 'STOPED',
   STARTING = 'STARTING',
   LISTENING = 'LISTENING',
+  BUILDING = 'BUILDING',
 }
 
 export class Storybook {
@@ -40,12 +42,14 @@ export class Storybook {
   }
 
   prepareStart() {
-    this.log = 'Starting storybook server ...\r\n';
+    this.log = 'Starting storybook server ...\n';
     this.state = ServerState.STARTING;
   }
 
   startServer() {
     const server = path.join(__dirname, 'server.js');
+
+    // prevent node 'port in use' error during extension debug
     const execArgv = process.execArgv.filter(
       o =>
         o !== '--inspect' &&
@@ -63,6 +67,12 @@ export class Storybook {
     this.child.stdout.on('data', data => {
       if (typeof data !== 'string') {
         data = data.toString();
+      }
+
+      if (data === 'webpack building...\n') {
+        this.state = ServerState.BUILDING;
+      } else if (data.startsWith('webpack built')) {
+        this.state = ServerState.LISTENING;
       }
 
       this.appendLog(data);
@@ -90,8 +100,10 @@ export class Storybook {
   }
 
   stopServer() {
+    this.appendLog('Stopping storybook server ...\n');
     if (this.child) {
-      this.child.send('SIGTERM');
+      this.state = ServerState.STOPPED;
+      this.child.kill('SIGTERM');
       this.child = undefined;
     }
   }
@@ -103,6 +115,9 @@ export class Storybook {
     while (this.log.indexOf('\b') !== -1) {
       this.log = this.log.replace(/.\x08/, '');
     }
+
+    channel.clear();
+    channel.appendLine(this.log);
 
     this.throttledEvent();
   }

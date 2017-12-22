@@ -16,7 +16,8 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:vscode-storybook.openStorybook"
+    "onCommand:vscode-storybook.openStorybook",
+    "workspaceContains:node_modules/@storybook/react/package.json"
   ],
   "main": "./out/extension",
   "contributes": {
@@ -68,7 +69,7 @@
     "@types/mocha": "^2.2.42",
     "@types/node": "^7.0.43",
     "typescript": "^2.6.1",
-    "vscode": "^1.1.6"
+    "vscode": "1.1.10"
   },
   "dependencies": {
     "@storybook/react": "3.2.18",

@@ -3,52 +3,13 @@ import { Storybook } from './storybook';
 import { StoryBookContentProvider } from './StoryBookContentProvider';
 
 export let storybook: Storybook;
-
-export function activate(context: vscode.ExtensionContext) {
-  console.log(
-    'Congratulations, your extension "vscode-storybook" is now active!',
-  );
-
-  const provider = new StoryBookContentProvider();
-  storybook = new Storybook();
-
-  vscode.workspace.onDidChangeTextDocument(
-    (e: vscode.TextDocumentChangeEvent) => {
-      if (e.document === vscode.window.activeTextEditor.document) {
-        provider.update(StoryBookContentProvider.uri);
-      }
-    },
-  );
-
-  vscode.window.onDidChangeTextEditorSelection(
-    (e: vscode.TextEditorSelectionChangeEvent) => {
-      if (e.textEditor === vscode.window.activeTextEditor) {
-        provider.update(StoryBookContentProvider.uri);
-      }
-    },
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      'vscode-storybook.openStorybook',
-      openStorybook,
-    ),
-    vscode.workspace.registerTextDocumentContentProvider('storybook', provider),
-  );
-}
-
-// this method is called when your extension is deactivated
-export function deactivate() {
-  if (storybook) {
-    storybook.stopServer();
-  }
-}
+export let channel: vscode.OutputChannel;
 
 function openStorybook() {
   return vscode.commands
     .executeCommand(
       'vscode.previewHtml',
-      StoryBookContentProvider.uri,
+      StoryBookContentProvider.URI,
       vscode.ViewColumn.Two,
       'Storybook preview',
     )
@@ -60,4 +21,55 @@ function openStorybook() {
         vscode.window.showErrorMessage(error);
       },
     );
+}
+
+export function activate(context: vscode.ExtensionContext) {
+  try {
+    const provider = new StoryBookContentProvider();
+
+    storybook = new Storybook();
+    channel = vscode.window.createOutputChannel('Storybook');
+
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        'vscode-storybook.openStorybook',
+        openStorybook,
+      ),
+      vscode.workspace.registerTextDocumentContentProvider(
+        'storybook',
+        provider,
+      ),
+    );
+
+    vscode.workspace.onDidChangeTextDocument(e => {
+      if (
+        vscode.window.activeTextEditor &&
+        e.document === vscode.window.activeTextEditor.document
+      ) {
+        provider.update();
+      }
+    });
+
+    vscode.window.onDidChangeTextEditorSelection(e => {
+      if (
+        vscode.window.activeTextEditor &&
+        e.textEditor === vscode.window.activeTextEditor
+      ) {
+        provider.update();
+      }
+    });
+
+    vscode.workspace.onDidCloseTextDocument(e => {
+      if (e.uri.scheme === 'storybook') {
+        storybook.stopServer();
+      }
+    });
+  } catch (error) {
+    vscode.window.showErrorMessage(error);
+  }
+}
+
+// this method is called when your extension is deactivated
+export function deactivate() {
+  storybook.stopServer();
 }

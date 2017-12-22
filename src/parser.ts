@@ -7,6 +7,7 @@ export interface Story {
   name: string;
   kind: string;
 }
+
 const cache: { [fileName: string]: { ver: number; stories: Story[] } } = {};
 
 export function getStories(document: vscode.TextDocument): Story[] {
@@ -24,6 +25,10 @@ export function getStories(document: vscode.TextDocument): Story[] {
 function parseStories(document: vscode.TextDocument): Story[] {
   if (document.languageId === 'typescriptreact') {
     return parseStoriesTsx(document);
+  }
+
+  if (document.languageId === 'javascriptreact') {
+    return parseStoriesJsx(document);
   }
 
   return [];
@@ -54,7 +59,7 @@ function parseStoriesTsx(document: vscode.TextDocument) {
 
   const result: Story[] = [];
 
-  // parse founded root constructs - parsed backwards
+  // parse founded root constructs - parsed backwards:
   // first found: `add("That", () => (<StorybookStory>...</StorybookStory>))`
   // then its child: `add("This", () => (<StorybookStory>...</StorybookStory>))`
   // and lastly: `storiesOf("Something", module)`
@@ -101,4 +106,9 @@ function parseStoriesTsx(document: vscode.TextDocument) {
   });
 
   return result;
+}
+
+function parseStoriesJsx(document: vscode.TextDocument) {
+  // TODO: parse jsx
+  return [];
 }

@@ -1,4 +1,4 @@
-/* 
+/*
  * this process is executed from workspace directory and requires, that
  * workspace have installed '@storybook/react' package
  */
@@ -99,10 +99,6 @@ function start(config: Config) {
     .then(() => {
       const address = `http://localhost:${config.port}/`;
       console.log(`Storybook started on => ${address}`);
-      console.log(
-        '\r\nTo see component story click anywhere inside ' +
-          '&lt;StorybookStory&gt; element',
-      );
       setState(ServerState.LISTENING);
     })
     .catch(error => {

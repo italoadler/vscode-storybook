@@ -7,15 +7,15 @@ import { ServerState } from './storybook';
 
 export class StoryBookContentProvider
   implements vscode.TextDocumentContentProvider {
-  static readonly uri = vscode.Uri.parse('storybook://preview');
+  static readonly URI = vscode.Uri.parse('storybook://preview');
 
   private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
   private storybookLogListener: vscode.Disposable;
   private story: Story;
 
-  provideTextDocumentContent(uri: vscode.Uri): string {
+  provideTextDocumentContent(): string {
     if (storybook.serverState !== ServerState.LISTENING) {
-      return this.serverStart(uri);
+      return this.serverStart();
     }
 
     return this.showStory();
@@ -25,19 +25,23 @@ export class StoryBookContentProvider
     return this.onDidChangeEmitter.event;
   }
 
-  update(uri: vscode.Uri) {
+  update() {
     const editor = vscode.window.activeTextEditor;
-    const stories = getStories(editor.document);
-    const pos = editor.document.offsetAt(editor.selection.active);
-    this.story = stories.filter(o => o.pos < pos && o.end > pos)[0];
-    this.onDidChangeEmitter.fire(uri);
+    if (editor) {
+      const stories = getStories(editor.document);
+      const pos = editor.document.offsetAt(editor.selection.active);
+      this.story = stories.filter(o => o.pos < pos && o.end > pos)[0];
+    } else {
+      this.story = undefined;
+    }
+    this.onDidChangeEmitter.fire(StoryBookContentProvider.URI);
   }
 
-  private serverStart(uri: vscode.Uri) {
+  private serverStart() {
     if (storybook.serverState !== ServerState.LISTENING) {
       if (!this.storybookLogListener) {
         this.storybookLogListener = storybook.onLog(() => {
-          this.update(uri);
+          this.update();
         });
       }
 
@@ -51,7 +55,7 @@ export class StoryBookContentProvider
       if (this.storybookLogListener) {
         this.storybookLogListener.dispose();
         this.storybookLogListener = undefined;
-        this.update(uri);
+        this.update();
       }
     }
 
@@ -61,7 +65,10 @@ export class StoryBookContentProvider
 
   private showStory() {
     if (!this.story) {
-      return '<div>No story is selected.</div>';
+      return (
+        '<div>No story is selected.<br />Select story by setting cursor ' +
+        'anywhere inside <pre>&lt;StorybookStory&gt;</pre> element.</div>'
+      );
     }
 
     const { kind, name: story } = this.story;
@@ -71,6 +78,7 @@ export class StoryBookContentProvider
       `?selectedKind=${kind}&selectedStory=${story}&full=1`;
 
     const style = 'background: white; width: 100%; height: 95vh;';
-    return `<iframe src='${hostUrl}' frameborder='0' style='${style}' />`;
+    return `<div>Kind: <b>${kind}</b>, Story: <b>${story}</b></div><hr />` +
+    `<iframe src='${hostUrl}' frameborder='0' style='${style}' />`;
   }
 }
