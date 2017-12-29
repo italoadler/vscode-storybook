@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { Storybook } from './storybook';
 import { StoryBookContentProvider } from './StoryBookContentProvider';
+import { getStories } from './parser';
 
 export let storybook: Storybook;
 export let channel: vscode.OutputChannel;
@@ -46,7 +47,10 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.activeTextEditor &&
         e.document === vscode.window.activeTextEditor.document
       ) {
-        provider.update();
+        const stories = getStories(e.document);
+        if (stories.length > 0) {
+          provider.update();
+        }
       }
     });
 
