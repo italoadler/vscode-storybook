@@ -35,11 +35,15 @@ function start(config: Config) {
   const middlewarePath = path.resolve(
     config.rootPath,
     'node_modules',
+    // this may be changed in the future by @storybook/react team ...
     '@storybook/react/dist/server/middleware.js',
   );
 
   if (!fs.existsSync(middlewarePath)) {
-    console.error('ERROR: Cannot find package \'@storybook/react\'.');
+    console.error(
+      `ERROR: Cannot find @storybook/react middleware at ${middlewarePath} .`,
+    );
+
     process.exit(1);
   }
 
@@ -102,13 +106,16 @@ function start(config: Config) {
       setState(ServerState.LISTENING);
     })
     .catch(error => {
-      console.error(error);
+      console.error('ERROR: ' + error);
       process.exit(1);
     });
 }
 
+// process is waiting for this message from parent before starting server so
+// parent can assign event listeners ...
 process.on('message', start);
 
+// kill yourself message from parent :o)
 process.on('SIGTERM', () => {
   if (listener) {
     listener.close(() => {

@@ -1,5 +1,6 @@
-# [work in progress] vscode-storybook
+# vscode-storybook
 
-Simple extension to show storybooks stories inside VSCode editor.
+Simple extension to start storybook server in background and show stories in html preview window inside VSCode editor.
 
-Tested only on https://github.com/skellock/typescript-with-electron-react-kit :)
+Currently only tsx syntax is supported (i personally do not use jsx, but PR are
+welcomed ... :o)

@@ -3,16 +3,19 @@ import * as path from 'path';
 import { throttle } from 'throttle-debounce';
 import * as vscode from 'vscode';
 import config from './config';
-import { channel } from './extension';
 
 export enum ServerState {
   STOPPED = 'STOPED',
   STARTING = 'STARTING',
   LISTENING = 'LISTENING',
   BUILDING = 'BUILDING',
+  BUILD_ERROR = 'BUILD_ERROR',
 }
 
-export class Storybook {
+/**
+ * Helper class used for spawning storybook server.
+ */
+export class ServerManager {
   private state: ServerState;
   private child: ChildProcess;
   private eventEmmiter: vscode.EventEmitter<void>;
@@ -24,7 +27,7 @@ export class Storybook {
     this.eventEmmiter = new vscode.EventEmitter<void>();
     this.log = '';
 
-    this.throttledEvent = throttle(100, () => {
+    this.throttledEvent = throttle(50, () => {
       this.eventEmmiter.fire();
     });
   }
@@ -49,7 +52,7 @@ export class Storybook {
   startServer() {
     const server = path.join(__dirname, 'server.js');
 
-    // prevent node 'port in use' error during extension debug
+    // prevent node 'debug port in use' error during extension debug
     const execArgv = process.execArgv.filter(
       o =>
         o !== '--inspect' &&
@@ -102,8 +105,8 @@ export class Storybook {
   stopServer() {
     this.appendLog('Stopping storybook server ...\n');
     if (this.child) {
-      this.state = ServerState.STOPPED;
       this.child.kill('SIGTERM');
+      this.state = ServerState.STOPPED;
       this.child = undefined;
     }
   }
@@ -111,13 +114,20 @@ export class Storybook {
   private appendLog(data: string) {
     this.log = this.log + data;
 
-    // remove all backspaces and any chars immedialy before
+    // remove all backspaces (\b) and any chars immedialy before
+    // example: 'abc\b\bdef\bghi' => 'adeghi'
     while (this.log.indexOf('\b') !== -1) {
-      this.log = this.log.replace(/.\x08/, '');
+      this.log = this.log.replace(/[\s\S]\x08/, '');
     }
 
-    channel.clear();
-    channel.appendLine(this.log);
+    if (this.log.indexOf('[tsl] ERROR in') !== -1) {
+      this.state = ServerState.BUILD_ERROR;
+
+      // note: cannot call stopServer here because its is calling this method
+      // and therefore infinite recursion call loop would occur
+      this.child.kill('SIGTERM');
+      this.child = undefined;
+    }
 
     this.throttledEvent();
   }

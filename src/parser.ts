@@ -27,10 +27,6 @@ function parseStories(document: vscode.TextDocument): Story[] {
     return parseStoriesTsx(document);
   }
 
-  if (document.languageId === 'javascriptreact') {
-    return parseStoriesJsx(document);
-  }
-
   return [];
 }
 
@@ -106,9 +102,4 @@ function parseStoriesTsx(document: vscode.TextDocument) {
   });
 
   return result;
-}
-
-function parseStoriesJsx(document: vscode.TextDocument) {
-  // TODO: parse jsx
-  return [];
 }

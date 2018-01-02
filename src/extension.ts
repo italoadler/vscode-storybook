@@ -1,12 +1,13 @@
 import * as vscode from 'vscode';
-import { Storybook } from './storybook';
-import { StoryBookContentProvider } from './StoryBookContentProvider';
 import { getStories } from './parser';
+import { ServerManager, ServerState } from './serverManager';
+import { StoryBookContentProvider } from './StoryBookContentProvider';
 
-export let storybook: Storybook;
-export let channel: vscode.OutputChannel;
+export let serverManager: ServerManager;
 
 function openStorybook() {
+  
+
   return vscode.commands
     .executeCommand(
       'vscode.previewHtml',
@@ -24,12 +25,12 @@ function openStorybook() {
     );
 }
 
+// this method is called when your extension is activated
 export function activate(context: vscode.ExtensionContext) {
   try {
     const provider = new StoryBookContentProvider();
 
-    storybook = new Storybook();
-    channel = vscode.window.createOutputChannel('Storybook');
+    serverManager = new ServerManager();
 
     context.subscriptions.push(
       vscode.commands.registerCommand(
@@ -65,7 +66,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     vscode.workspace.onDidCloseTextDocument(e => {
       if (e.uri.scheme === 'storybook') {
-        storybook.stopServer();
+        serverManager.stopServer();
       }
     });
   } catch (error) {
@@ -75,5 +76,5 @@ export function activate(context: vscode.ExtensionContext) {
 
 // this method is called when your extension is deactivated
 export function deactivate() {
-  storybook.stopServer();
+  serverManager.stopServer();
 }
