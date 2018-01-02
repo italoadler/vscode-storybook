@@ -6,7 +6,12 @@ import { StoryBookContentProvider } from './StoryBookContentProvider';
 export let serverManager: ServerManager;
 
 function openStorybook() {
-  
+  if (serverManager.serverState !== ServerState.LISTENING) {
+    serverManager.prepareStart();
+    process.nextTick(() => {
+      serverManager.startServer();
+    });
+  }
 
   return vscode.commands
     .executeCommand(

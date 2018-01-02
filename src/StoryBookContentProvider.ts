@@ -21,13 +21,6 @@ export class StoryBookContentProvider
         });
       }
 
-      if (serverManager.serverState === ServerState.STOPPED) {
-        serverManager.prepareStart();
-        process.nextTick(() => {
-          serverManager.startServer();
-        });
-      }
-
       const style = 'width: 100%; padding-left: 2em; text-indent: -2em;';
       return `<pre style="${style}">${serverManager.logLines}</pre>`;
     }

@@ -1,8 +1,8 @@
 {
   "name": "vscode-storybook",
-  "displayName": "vscode-storybook",
+  "displayName": "Storybook preview for VSCode",
   "description": "StoryBook preview for VSCode",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "publisher": "cstechnologies",
   "icon": "images/icon.png",
   "repository": {
@@ -67,14 +67,14 @@
   "devDependencies": {
     "@types/express": "^4.0.39",
     "@types/mocha": "^2.2.42",
-    "@types/node": "^7.0.43",
-    "typescript": "^2.6.1",
-    "vscode": "1.1.10"
+    "@types/node": "^7.0.43"    
   },
   "dependencies": {
     "@storybook/react": "3.2.18",
     "react": "^16.2.0",
     "react-dom": "^16.2.0",
-    "throttle-debounce": "^1.0.1"
+    "throttle-debounce": "^1.0.1",
+    "typescript": "^2.6.1",
+    "vscode": "1.1.10"
   }
 }
