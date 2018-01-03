@@ -8,8 +8,7 @@ export enum ServerState {
   STOPPED = 'STOPED',
   STARTING = 'STARTING',
   LISTENING = 'LISTENING',
-  BUILDING = 'BUILDING',
-  BUILD_ERROR = 'BUILD_ERROR',
+  ERROR = 'ERROR',
 }
 
 /**
@@ -45,6 +44,10 @@ export class ServerManager {
   }
 
   prepareStart() {
+    if (this.child) {
+      this.stopServer();
+    }
+
     this.log = 'Starting storybook server ...\n';
     this.state = ServerState.STARTING;
   }
@@ -72,12 +75,6 @@ export class ServerManager {
         data = data.toString();
       }
 
-      if (data === 'webpack building...\n') {
-        this.state = ServerState.BUILDING;
-      } else if (data.startsWith('webpack built')) {
-        this.state = ServerState.LISTENING;
-      }
-
       this.appendLog(data);
     });
 
@@ -91,6 +88,13 @@ export class ServerManager {
 
     this.child.on('message', data => {
       this.state = data.state;
+      if (this.state === ServerState.ERROR) {
+        this.log =
+          this.log +
+          '\r\n\r\nStorybook server didnt start.\r\nPlease fix any ' +
+          'compilation errors and reopen storybook preview window';
+      }
+
       this.eventEmmiter.fire();
     });
 
@@ -118,15 +122,6 @@ export class ServerManager {
     // example: 'abc\b\bdef\bghi' => 'adeghi'
     while (this.log.indexOf('\b') !== -1) {
       this.log = this.log.replace(/[\s\S]\x08/, '');
-    }
-
-    if (this.log.indexOf('[tsl] ERROR in') !== -1) {
-      this.state = ServerState.BUILD_ERROR;
-
-      // note: cannot call stopServer here because its is calling this method
-      // and therefore infinite recursion call loop would occur
-      this.child.kill('SIGTERM');
-      this.child = undefined;
     }
 
     this.throttledEvent();

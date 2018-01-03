@@ -14,6 +14,8 @@ export class StoryBookContentProvider
   private story: Story;
 
   provideTextDocumentContent(): string {
+    console.log('provideTextDocumentContent: ' + serverManager.serverState);
+
     if (serverManager.serverState !== ServerState.LISTENING) {
       if (!this.storybookLogListener) {
         this.storybookLogListener = serverManager.onLog(() => {
@@ -38,13 +40,17 @@ export class StoryBookContentProvider
   }
 
   update() {
+    console.log('update: ' + serverManager.serverState);
+
     const editor = vscode.window.activeTextEditor;
+    let story: Story | undefined;
     if (editor) {
       const stories = getStories(editor.document);
       const pos = editor.document.offsetAt(editor.selection.active);
-      this.story = stories.filter(o => o.pos < pos && o.end > pos)[0];
-    } else {
-      this.story = undefined;
+      story = stories.filter(o => o.pos < pos && o.end > pos)[0];
+      if (story) {
+        this.story = story;
+      }
     }
 
     this.onDidChangeEmitter.fire(StoryBookContentProvider.URI);

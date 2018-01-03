@@ -16,6 +16,7 @@
     "no-use-before-declare": true,
     "no-var-requires": false,
     "object-literal-sort-keys": [true, "ignore-case"],
+    "object-literal-key-quotes": [true, "as-needed"],
     "quotemark": [true, "single", "jsx-double"],
     "semicolon": [true, "always", "ignore-bound-class-methods"],
     "variable-name": [

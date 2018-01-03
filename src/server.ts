@@ -1,17 +1,25 @@
 /*
  * this process is executed from workspace directory and requires, that
- * workspace have installed '@storybook/react' package
+ * workspace have installed all packages described in projectPackages.
  */
-import * as express from 'express';
 import * as fs from 'fs';
 import { Server } from 'http';
 import * as path from 'path';
-import * as shelljs from 'shelljs';
 
-enum ServerState {
+// info about packages, that are loaded from projects node_modules directory ...
+const projectPackages = {
+  express: 'express',
+  shelljs: 'shelljs',
+  storybook: '@storybook/react/dist/server/middleware.js',
+};
+
+type ProjectPackages = { [P in keyof typeof projectPackages]: any };
+
+export enum ServerState {
   STOPPED = 'STOPED',
   STARTING = 'STARTING',
   LISTENING = 'LISTENING',
+  ERROR = 'ERROR',
 }
 
 interface Config {
@@ -29,27 +37,44 @@ function setState(state: ServerState) {
   process.send({ state });
 }
 
+function fatalError(error: any): never {
+  console.error('ERROR: ' + error);
+  setState(ServerState.ERROR);
+  return process.exit(1);
+}
+
+/**
+ * gets path to packages installed in project dir and ensure that these packages
+ * actually exists.
+ * @param rootPath project root path @see vscode.workspace.rootpath
+ */
+function checkPackages(rootPath: string): ProjectPackages {
+  return Object.keys(projectPackages).reduce(
+    (result, key) => {
+      const packagePath = path.resolve(
+        rootPath,
+        'node_modules',
+        projectPackages[key],
+      );
+
+      if (!fs.existsSync(packagePath)) {
+        fatalError(`Error: Cannot find module '${key}' at ${packagePath} .`);
+      }
+
+      result[key] = require(packagePath);
+      return result;
+    },
+    {} as ProjectPackages,
+  );
+}
+
 function start(config: Config) {
   process.chdir(config.rootPath);
 
-  const middlewarePath = path.resolve(
-    config.rootPath,
-    'node_modules',
-    // this may be changed in the future by @storybook/react team ...
-    '@storybook/react/dist/server/middleware.js',
-  );
-
-  if (!fs.existsSync(middlewarePath)) {
-    console.error(
-      `ERROR: Cannot find @storybook/react middleware at ${middlewarePath} .`,
-    );
-
-    process.exit(1);
-  }
+  const { express, shelljs, storybook } = checkPackages(config.rootPath);
 
   if (serverState !== ServerState.STOPPED) {
-    console.error('ERROR: Server is not stopped.');
-    process.exit(1);
+    fatalError('Server is not stopped.');
   }
 
   setState(ServerState.STARTING);
@@ -60,14 +85,13 @@ function start(config: Config) {
     config.staticDirs.forEach(dir => {
       const staticPath = path.resolve(config.rootPath, dir);
       if (!fs.existsSync(staticPath)) {
-        console.error(
-          'ERROR: no such directory to load static files: ' + staticPath,
+        console.warn(
+          'WARN: no such directory to load static files: ' + staticPath,
         );
-        process.exit(1);
+      } else {
+        console.log(`=> Loading static files from: ${staticPath} .`);
+        app.use(express.static(staticPath, { index: false }));
       }
-
-      console.log(`=> Loading static files from: ${staticPath} .`);
-      app.use(express.static(staticPath, { index: false }));
     });
   }
 
@@ -83,12 +107,15 @@ function start(config: Config) {
   // function which is called inside the middleware
   const configDir = path.join(config.rootPath, config.configDir);
 
-  // import from project node_modules, not from extension node_modules
-  const { default: storybook, webpackValid } = require(middlewarePath);
+  app.use(storybook.default(configDir));
 
-  app.use(storybook(configDir));
+  const webpackSuccess = (storybook.webpackValid as Promise<any>).catch(
+    error => {
+      fatalError('WEBPACK compilation error');
+    },
+  );
 
-  const serverListening = new Promise((resolve, reject) => {
+  const serverStart = new Promise((resolve, reject) => {
     const server = app.listen(config.port, error => {
       if (error) {
         reject(error);
@@ -99,20 +126,20 @@ function start(config: Config) {
     });
   });
 
-  Promise.all([webpackValid, serverListening])
-    .then(() => {
+  Promise.all([webpackSuccess, serverStart]).then(
+    () => {
       const address = `http://localhost:${config.port}/`;
       console.log(`Storybook started on => ${address}`);
       setState(ServerState.LISTENING);
-    })
-    .catch(error => {
-      console.error('ERROR: ' + error);
-      process.exit(1);
-    });
+    },
+    error => {
+      fatalError(error);
+    },
+  );
 }
 
 // process is waiting for this message from parent before starting server so
-// parent can assign event listeners ...
+// parent can assign event listeners before real work starts ...
 process.on('message', start);
 
 // kill yourself message from parent :o)

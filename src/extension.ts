@@ -68,12 +68,6 @@ export function activate(context: vscode.ExtensionContext) {
         provider.update();
       }
     });
-
-    vscode.workspace.onDidCloseTextDocument(e => {
-      if (e.uri.scheme === 'storybook') {
-        serverManager.stopServer();
-      }
-    });
   } catch (error) {
     vscode.window.showErrorMessage(error);
   }
